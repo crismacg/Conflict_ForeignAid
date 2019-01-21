@@ -1,0 +1,193 @@
+---
+title: "exploratory_analysis"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+
+```{r read_data, echo = FALSE}
+library(readr)
+library(ggplot2)
+library(dplyr)
+library(RColorBrewer)
+
+foreign_aid <- read_csv("data/us_foreign_aid_complete.csv")
+middle_east <- read_csv("data/middleeast_conf.csv")
+africa <- read_csv("data/africa_conf.csv")
+asia <- read_csv("data/asia_conf.csv")
+
+```
+
+
+```{r graph1}
+foreign_aid  %>% 
+  filter((region_name != "World") & (fiscal_year > 1960))  %>% 
+  group_by(fiscal_year, assistance_category_name) %>%  
+  summarise(total_raw = sum(constant_amount)) %>% 
+  mutate(share = total_raw / sum(total_raw)) %>% ggplot(aes(x=as.numeric(as.character(fiscal_year)), y = share, fill = assistance_category_name)) + 
+  geom_area(position = "fill") +  
+  labs(
+    x = "Year",
+    y= "Share of aid corresponding to each category", 
+    title ="United States foreign aid over time (1960-2018)",
+    subtitle = "Distribution of type of foreign aid between 1960 and 2018", 
+    caption =  "Source: USAID dataset available at https://explorer.usaid.gov/",
+    fill = "Assistance Category")
+ 
+```
+
+```{r graph1}
+foreign_aid %>% 
+  filter((region_name != "World") & (fiscal_year > 1960))%>% 
+  group_by(fiscal_year, region_name) %>% summarise(total_raw = sum(constant_amount)) %>% 
+  mutate(share = total_raw / sum(total_raw)) %>% 
+  ggplot(aes(x=as.numeric(as.character(fiscal_year)), y = share, fill = region_name)) + geom_area(position = "fill") + 
+  labs(
+    x = "Year",
+    y= "Share of aid corresponding to each region", 
+    title ="United States foreign aid over time (1960-2018)",
+    subtitle = "Regional distribution of foreign aid between 1960 and 2018", 
+    caption =  "Source: USAID dataset available at https://explorer.usaid.gov/",
+    fill = "Region")
+```
+```{r graph2}
+
+foreign_aid %>% 
+  filter((region_name != "World") & (fiscal_year > 1960))%>% 
+  group_by(fiscal_year, region_name, assistance_category_name) %>%
+  summarise(total_raw = sum(constant_amount)) %>% 
+  mutate(share = total_raw / sum(total_raw)) %>% 
+  ggplot(aes(x=as.numeric(as.character(fiscal_year)), y = share, fill = region_name, label = region_name)) + 
+  geom_area(position = "fill") + 
+  facet_grid(assistance_category_name ~ .) + 
+  labs(
+  x = "Year", 
+  y = "Share of aid corresponding to each region", 
+  title = "Distribution of United States foreign aid (1960-2018)", 
+  subtitle = "Regional distribution over time by category, between 1960 and 2018",
+  caption = "Source: USAID dataset available at https://explorer.usaid.gov/", 
+   fill = "Region")
+  ggsave("distribution_aid.pdf", plot=last_plot(), device = "pdf", path="output/") 
+```
+
+
+```{r graph2}
+# Logarithmic 
+
+library(lubridate)
+middle_east %>% 
+  mutate(DATE_NUM = as.Date(EVENT_DATE, format = "%d-%B-%Y"))  %>%  
+  mutate(MONTH = month(DATE_NUM)) %>%  
+  filter(YEAR < 2019)  %>% 
+  group_by(COUNTRY, MONTH, YEAR) %>% summarize(total_death = sum(FATALITIES)) %>% 
+  ggplot(mapping = aes(x = MONTH, y = total_death, color = COUNTRY)) + 
+  geom_line() + 
+  facet_grid(. ~YEAR  ) + scale_x_continuous(breaks=c(3,6,9,12)) +
+  labs(
+  x = "Month", 
+  y = "Number of fatalities", 
+  title = "Conflict-induced fatalities (2016-2018)", 
+  subtitle = "Fatalities due to conflict by type in the Middle East", 
+  caption = "Source: ACLED dataset available at https://www.prio.org/Data/Armed-Conflict/", 
+  fill = "Country"
+)
+  ggsave("fatalities_middleeast_1.pdf", plot=last_plot(), device = "pdf", path="output/") 
+```
+
+
+```{r graph3}
+
+middle_east %>% 
+  mutate(DATE_NUM = as.Date(EVENT_TYPE, format = "%d-%B-%Y"))  %>%  
+  mutate(MONTH = month(DATE_NUM)) %>% 
+  mutate(TYPE = tolower(EVENT_TYPE)) %>%  
+  filter(YEAR < 2019) %>% 
+  ggplot(mapping = aes(x = TYPE, y = FATALITIES, color = as.factor(YEAR))) + 
+  geom_point(aes(size=FATALITIES)) + 
+  coord_flip()  + 
+  facet_grid( YEAR ~. ) + 
+labs(
+x = "Number of fatalities", 
+y = "Source of conflict", 
+title = "Conflict-induced fatalities (2016-2018)", 
+subtitle = "Fatalities due to conflict by type in the Middle East", 
+caption = "Source: ACLED dataset available at https://www.prio.org/Data/Armed-Conflict/"
+)
+
+
+```
+```{r graph3}
+
+middle_east %>% 
+  mutate(DATE_NUM = as.Date(EVENT_TYPE, format = "%d-%B-%Y"))  %>%  
+  mutate(MONTH = month(DATE_NUM)) %>% 
+  mutate(TYPE = tolower(EVENT_TYPE)) %>%  
+  filter(YEAR < 2019) %>% 
+  ggplot(mapping = aes(x = TYPE, y = FATALITIES, color = as.factor(YEAR))) + 
+  geom_point() + 
+  coord_flip()  + 
+  facet_grid( YEAR ~. ) + 
+labs(
+x = "Number of fatalities", 
+y = "Source of conflict", 
+title = "Conflict-induced fatalities (2016-2018)", 
+subtitle = "Fatalities due to conflict by type in the Middle East", 
+caption = "Source: ACLED dataset available at https://www.prio.org/Data/Armed-Conflict/"
+)
+
+```
+
+```{r graph3}
+library(RColorBrewer)
+middle_east %>% 
+  mutate(DATE_NUM = as.Date(EVENT_TYPE, format = "%d-%B-%Y"))  %>%  
+  mutate(MONTH = month(DATE_NUM)) %>% 
+  mutate(TYPE = tolower(EVENT_TYPE)) %>%
+  filter(YEAR < 2019) %>% 
+  group_by(TYPE, YEAR) %>% summarize(n= n()) %>% 
+  ggplot(middle_east, mapping = aes(x = TYPE, y = YEAR, fill = n)) + 
+  geom_tile() + 
+  coord_flip() + 
+  scale_fill_gradient(low = "#34B5B6", high = "#0B3C3C") +
+  geom_text(aes(label=n), colour = "white", size= 3) + 
+  labs(
+  x ="Year",
+  y = "Source of conflict",
+  title = "Conflict-related events (2016-2018)", 
+  subtitle = "Number of recorded conflicts by type", 
+  caption = "Source: ACLED dataset available at https://www.prio.org/Data/Armed-Conflict/") 
+
+
+```
+
+```{r graph3}
+
+middle_east %>% 
+  mutate(DATE_NUM = as.Date(EVENT_TYPE, format = "%d-%B-%Y"))  %>%  
+  mutate(MONTH = month(DATE_NUM)) %>% 
+  mutate(TYPE = tolower(EVENT_TYPE)) %>%  
+  filter(YEAR < 2019) %>% 
+  group_by(TYPE, YEAR) %>% summarize(fatalities = sum(FATALITIES)) %>%
+  ggplot(middle_east, mapping = aes(x = TYPE, y = YEAR, fill = fatalities)) +
+  geom_tile() + 
+  coord_flip() + 
+  geom_text(aes(label=fatalities), colour = "white", size= 3) + 
+  scale_fill_gradient(low = "#34B5B6", high = "#0B3C3C") +
+  labs(
+  x ="Year",
+  y = "Source of conflict",
+  title = "Conflict-induced fatalities (2016-2018)", 
+  subtitle = "Fatalities due to conflict by type in the Middle East", 
+  caption = "Source: ACLED dataset available at https://www.prio.org/Data/Armed-Conflict/")
+  ggsave("fatalities_middleeast_2.pdf", plot=last_plot(), device = "pdf", path="output/") 
+
+```
