@@ -45,7 +45,7 @@ foreign_aid  %>%
  
 ```
 
-```{r graph1}
+```{r graph2}
 foreign_aid %>% 
   filter((region_name != "World") & (fiscal_year > 1960))%>% 
   group_by(fiscal_year, region_name) %>% summarise(total_raw = sum(constant_amount)) %>% 
@@ -59,7 +59,7 @@ foreign_aid %>%
     caption =  "Source: USAID dataset available at https://explorer.usaid.gov/",
     fill = "Region")
 ```
-```{r graph2}
+```{r graph3}
 
 foreign_aid %>% 
   filter((region_name != "World") & (fiscal_year > 1960))%>% 
@@ -80,7 +80,7 @@ foreign_aid %>%
 ```
 
 
-```{r graph2}
+```{r graph4}
 # Logarithmic 
 
 library(lubridate)
@@ -104,7 +104,7 @@ middle_east %>%
 ```
 
 
-```{r graph3}
+```{r graph5}
 
 middle_east %>% 
   mutate(DATE_NUM = as.Date(EVENT_TYPE, format = "%d-%B-%Y"))  %>%  
@@ -125,7 +125,7 @@ caption = "Source: ACLED dataset available at https://www.prio.org/Data/Armed-Co
 
 
 ```
-```{r graph3}
+```{r graph6}
 
 middle_east %>% 
   mutate(DATE_NUM = as.Date(EVENT_TYPE, format = "%d-%B-%Y"))  %>%  
@@ -146,7 +146,7 @@ caption = "Source: ACLED dataset available at https://www.prio.org/Data/Armed-Co
 
 ```
 
-```{r graph3}
+```{r graph7}
 library(RColorBrewer)
 middle_east %>% 
   mutate(DATE_NUM = as.Date(EVENT_TYPE, format = "%d-%B-%Y"))  %>%  
@@ -169,7 +169,7 @@ middle_east %>%
 
 ```
 
-```{r graph3}
+```{r graph8}
 
 middle_east %>% 
   mutate(DATE_NUM = as.Date(EVENT_TYPE, format = "%d-%B-%Y"))  %>%  
