@@ -1,0 +1,296 @@
+---
+title: "prelim_analysis"
+output: html_document
+code_folding: hide
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(readr)
+library(ggplot2)
+library(dplyr)
+library(RColorBrewer)
+library(lubridate)
+library(tidyr)
+library(forcats)
+```
+
+```{r,}
+
+# Theme 
+my_theme <- theme(plot.title = element_text(size = rel(1.5), colour = "#929292",  family = "Cambria", hjust = .5, vjust = .8),
+             plot.subtitle = element_text(size = rel(1.2), colour = "#929292", family = "Cambria", hjust =.5),
+             plot.caption = element_text(colour = "#929292", family = "Calibri"),
+             legend.text = element_text(colour = "#929292", face = "bold", family = "Calibri"),
+             legend.title = element_text(colour = "#929292", face = "bold", family = "Cambria"),
+             axis.title.y = element_text(colour = "#929292", size = rel(1.2), family = "Cambria", angle = 0, vjust = .5),
+             axis.title.x = element_text(colour = "#929292", size = rel(1.2), family = "Cambria"),
+             axis.text  = element_text(colour = "#929292", face = "bold", family = "Calibri"),
+             legend.box.background = element_rect(linetype = "solid", colour =  "#929292"),
+             panel.background = element_rect(linetype = "solid", size = .5, colour = "#929292", fill = "#F1F1F1"),
+             panel.grid.major = element_line(linetype = "solid", size = .7, colour = "White"),
+             panel.grid.minor = element_line(linetype = "solid", size = .7, colour = "White")
+            )
+
+# Color scales (to be manually applied to each plot)
+sd <- scale_colour_manual(values = c("#88D9D6", "#990033", "#FF9966","#009999","#FFCC66","#FF9999", "#66FFFF" ), aesthetics = c("colour", "fill"))
+
+sg <- scale_fill_gradient(low = "#88D9D6", high = "#3F002D", space = "Lab",  na.value = "grey50", guide = "colourbar", aesthetics = c("color", "fill"))
+
+sgscale <- scale_colour_manual(values = c( "#88D9D6", "#FF9999","#009999"), aesthetics = c("colour", "fill"))
+
+
+```
+
+
+```{r read_data, echo = FALSE , include=FALSE}
+
+# Read-in data 
+
+# foreing aid
+foreign_aid <- read_csv("data/us_foreign_aid_complete.csv")
+
+# regional data 
+middle_east <- read_csv("data/middleeast_conf.csv")
+africa <- read_csv("data/africa_conf.csv")
+asia <- read_csv("data/asia_conf.csv")
+
+# grid - conflict data 
+dist <- read.table("data/distance_v1_01.csv", sep = ";", header = TRUE)
+conf <- read.table("data/conflict_v1_01.csv", sep = ";", header = TRUE)
+confsite <- read.table("data/confsitegrid_v1_01.csv", sep = ";", header = TRUE)
+
+#data wrangling of regional conflict data 
+africa$CONTINENT <- "Africa"
+asia$CONTINENT <- "Asia"
+middle_east$CONTINENT <- "Middle East"
+
+all <- bind_rows(africa, asia)
+all <- bind_rows(all, middle_east)
+table(all$CONTINENT)
+
+all$EVENT_TYPE[all$EVENT_TYPE == "Battle-Government regians territory"] <- "Battle-Government regains territory"
+all$EVENT_TYPE[all$EVENT_TYPE == "Remote Violence"] <- "Remote violence"
+all$EVENT_TYPE[all$EVENT_TYPE == "Violence against Civilians"] <- "Violence against civilians"
+all$EVENT_TYPE[all$EVENT_TYPE == "Violence Against Civilians"] <- "Violence against civilians"
+all$EVENT_TYPE[all$EVENT_TYPE == "Strategic Development"] <- "Strategic development"
+all$EVENT_TYPE[all$EVENT_TYPE == "RIots/Protests"] <- "Riots/Protests"
+all$EVENT_TYPE[all$EVENT_TYPE == "Battle-No change of territory"] <- "Battle-no change of territory"
+
+# Managing grid information 
+conf_conflictonly <- conf %>% filter(conf ==1)
+dist_conflictonly <- dist %>% filter(gid %in% unique(conf_conflictonly$gid))
+merged_conflictonly <- conf_conflictonly %>% left_join(dist_conflictonly, by = c("gid", "year"))
+merged_totalgrids <- conf %>% left_join(dist, by = c("gid", "year"))
+merged <- merged_conflictonly %>% left_join(confsite, by = c("gid", "year"))
+
+```
+
+
+```{r}
+
+all %>% 
+  mutate(DATE_NUM = as.Date(EVENT_DATE, format = "%d-%B-%Y"))  %>%  
+  mutate(MONTH = month(DATE_NUM)) %>% 
+  mutate(YR = year(DATE_NUM)) %>% 
+  filter(YR < 2019) %>% 
+  filter(YR > 2015) %>% 
+  filter(EVENT_TYPE != "Headquarters or base established") %>%
+  group_by(EVENT_TYPE, CONTINENT) %>% summarize(Fatalities = sum(FATALITIES)) %>%
+  ggplot(middle_east, mapping = aes(x = fct_reorder(EVENT_TYPE, Fatalities), y = CONTINENT, fill = Fatalities)) +
+  geom_tile() + 
+  geom_text(aes(label=Fatalities), colour = "white", size= 3) + 
+  coord_flip() + 
+  labs(
+  x ="Type of conflict",
+  y = "Region",
+  title = "Most fatalities due to conflict occur as a \nconsequence of war time battles or due \nto remote violence", 
+  subtitle = "Total fatalities per region and by type of violence  \n(2016-2018)", 
+  caption = "Source: ACLED dataset available at https://www.prio.org/Data/Armed-Conflict/") + 
+  my_theme + sg 
+```
+
+
+The Armed Conflict Location & Event Data Project is a source has disaggregated data related to conflict to unprecedented levels. It presents information on violence related to combatants and violence inflicted on civilians disaggregated by day and by type of event. The main question that is addressed by this project is who is being affected by civil conflict around the globe and what is the magnitude of it. 
+
+The graph above shows the number of fatalities by type of conflict on Asia, Africa, and the Middle East. Only data from 2016 to 2018 is used, because even though there exists data for Africa since 1990s, and data for Asia since the start of 2010, we only have data for the last three years for the Middle East. In an effort to reduce any reporting bias, I restrict to reporting information for these last three years. 
+
+Notably, we see that the two main determinants of fatalities are remote violence and battles where there is not a change of territory, and we see that it is mostly concentrated in the Middle East, consistent with the protracted conflict that Syria has experienced during the last decade. However, we see that the number of deaths as a consequence of battles is also quite high in Africa and more so in Asia, the later one surpassing the number of deaths related to other categories of war-related battles in the Middle East. It is worth noting that the amount of remote violence in the Middle East is four times the size of that in Asia, and ten times the size of that in Africa. 
+
+However, it is also relevant to underscore that where we see a highest concentration of violence outside of the battlefields, against non-combatants (civilians), is in Africa, despite the lower numbers of battle related fatalities. 
+
+This graph is aggregates information from 2016 to 2018. What are the time trends? Is violence and brutality increasing or decreasing? What is the geographic distribution within each region? How does the United States foreign aid, both economic and military, reflects this conflicts? Throughout this questions I will try to answer some of this questions.
+
+```{r}
+all %>% group_by(YEAR, COUNTRY) %>% 
+  filter(YEAR>=2015) %>%  
+  summarise(f = sum(FATALITIES)) %>% 
+  spread(YEAR, f) %>% 
+  mutate(p_2018 = ((`2018`-`2017`)/`2017`)*100) %>% 
+  mutate(t_2018 = (`2018`-`2017`)) %>% 
+  mutate(Change = ifelse(abs(p_2018) <50, yes = "Change greater than 0%", no = 
+                      (ifelse(abs(p_2018)<100, yes= "Change greater than 50%", no = 
+                                  (ifelse(abs(p_2018)> 100, yes = "Change greater than 100%", no = NaN)))))) %>% 
+  mutate(t_2018 = (`2018`-`2017`)) %>% 
+  filter(p_2018!=0) %>%  
+  filter(abs(p_2018)>20) %>%
+  filter(`2017` > 100) %>%  
+  ggplot(mapping = aes(x = fct_reorder(COUNTRY, p_2018), weight= p_2018) ) + 
+  geom_bar(aes(fill = Change))+
+  coord_flip() +
+  labs(
+    x = "Country",
+    y = "Percentual change in fatalities", 
+    title ="Fatalities due to conflict more than double in four countries \nbetween 2017 and  2018.",
+    subtitle = "Countries that have experienced  a sustained increase in fatalities due to conflict \n since 2016", 
+    caption =  "Methodological note: Data considers only countries \n with an initial level of over 100 deaths in 2017, following a partial definition of civil conflict \n and we only look at countries with a change greater than 20% \n\n Source: ACLED dataset available at https://www.prio.org/Data/Armed-Conflict/") + my_theme + sgscale
+
+```
+Ten countries in the world have experienced a positive change of more than 20% from 2017 to 2018. Out of these, in eight countries the increase has been of 50% of more, and in four of them the increase is greater than 100%. These countries are Palestine, Burkina Faso, Cameroon, and Saudi Arabia. It is note specifying that only countries with an initial level of 100 deaths in 2017 are considered. It is also worth noting htat while more than half of the countries have experienced a decrease in the conflict experienced as meassured by its impact on human lives, the changes have been less stark than those moving on the different direction. 
+
+This implies that while overall trends in conflict might decrease, localized conflicts seem to be becoming more intense. The fact that fatalities have more than doubled for those four countries raise an alarm of potential prolongation and further escalation of these conflicts, and points us to the necessity of performing more research on the situation of those countries to explore potential diplomatic, regional, and multilateral actions to prevent more human loses. 
+
+
+```{r graph2}
+foreign_aid %>% 
+  filter((region_name != "World") & (fiscal_year > 1960))%>% 
+  group_by(fiscal_year, region_name) %>%
+  summarise(total_raw = sum(constant_amount)) %>% 
+  mutate(share = total_raw / sum(total_raw)) %>% 
+  arrange(share) %>% 
+  ggplot(aes(x=as.numeric(fiscal_year), y = share, fill = fct_reorder(region_name, share), label = region_name)) + 
+  geom_area(position = "fill")+
+  labs(
+    x = "Year",
+    y = "Aid share \n per \nregion", 
+    title ="Middle East and North Africa's share of aid from the United States \nhas decreased since early 2000s due to increased aid \n to South and Central Asia and Sub-Saharan Africa",
+    subtitle = "Regional distribution over time by category of United States foreign aid \n(1960-2018)", 
+    caption =  "Source: USAID dataset available at https://explorer.usaid.gov/",
+   fill = "Region") + 
+   my_theme + theme(panel.background = element_rect(fill = "transparent"),
+                    panel.grid.minor = element_line(size = 0),
+                    panel.grid.major = element_line(size = 0)) + sd
+
+```
+
+When we look at the aggregated foreign aid distribution over regions and over time we observe an interesting pattern that can be tied to many historical events. During the cold war, we see an overwhelming expansion of resources into the East Asia and Oceania region, accounting for over a half of the resources for a few years, explained by the Vietnam and Korean wars and other local conflicts proxies to the soviet-american conflict. However, we see a sharp decline starting in 1980, at the same time that we see a big expansion on foreign aid invested into the Middle east and North Africa region. This focus in the MENA region persists until approximately 2005, when we see a big proportional expansion on the flow of aid to South and Central Asia, in line with the intervention in Afghanistan and Iraq. This expansion however has decreased in recent years, at the same time that we see an increase in the percentage assigned to Sub-Saharan Africa, becoming the largest recipient at this moment in time. 
+
+```{r}
+foreign_aid %>% 
+  filter((region_name != "World") & (fiscal_year > 1960))%>% 
+  group_by(fiscal_year, region_name, assistance_category_name) %>%
+  summarise(total_raw = sum(constant_amount)) %>% 
+  mutate(share = total_raw / sum(total_raw)) %>% 
+  arrange(share) %>% 
+  ggplot(aes(x=as.numeric(as.character(fiscal_year)), y = share, fill = fct_reorder(region_name, total_raw), label = region_name)) + 
+  geom_area(position = "fill") + 
+  facet_grid(assistance_category_name ~ .) + 
+  labs(
+  x = "Year", 
+  y = "Aid share \n per \nregion", 
+  title = "Aid to the Middle East represents the highest share of the \nUnited States military expenditure on aid, while military \nresources on Central Asia diminish", 
+  subtitle = "Regional distribution over time by category of United States foreign aid \n(1960-2018)",
+  caption = "Source: USAID dataset available at https://explorer.usaid.gov/", 
+   fill = "Region") + 
+   my_theme + theme(panel.background = element_rect(fill = "transparent"),
+                    panel.grid.minor = element_line(size = 0),
+                    panel.grid.major = element_line(size = 0)) + sd 
+```
+
+
+Breaking down the plot shown above onto two panels, we can see how these patterns are not homogeneous for military and economic aid. The trends for the economic aid are fairly stable throughout the studied years, and some trends that we can observe is somewhat of an increase of the percentage devoted to South and Central Asia, and an increase on economic aid to Europe and Eurasia after 1990. It is important to note that, however big the percentages observed for the Middle East were on the first graph presented, we can see here that it is not a place where most of the economic foreign-aid related resources go, being actually the region with the smallest percentage, throughout all the time studied. 
+
+Looking at the military pane, we see that, consistent with the observation made before, the 1960s and 1970s are marked by a big focus on aid towards East Asia and Oceania that declines after the end of the Cold-War. This is consistent with the history of the United States involvement not only on wars where it actively took part (as in Korea and Vietnam), but also on every other civic conflict that acted as a proxy for the cold-war (such as Burma, Cambodia). We also see a big investment in Europe and Eurasia which can also be related to a strategy of contingency against the Soviet influence and a stable and consistent commitment to NATO. In the mid-nineties, as the Gulf War took course we can also see the increase in the military aid towards the MENA region, and in the decade of the 2000s we can see the flow of aid towards South and Central Asia which we can infer to be related to the war on Afghanistan. 
+
+Lastly, it is important to note how there is barely any military aid towards Sub-Saharan Africa, but that nonetheless it accounts for a big part of the overall regional investments, hinting at the fact that gradually, as time has passed, most of the investments have been through channels labelled as "Economic" instead of "Military"
+
+
+```{r}
+
+#Capital distance & onset 
+merged %>% 
+  filter(type !=2) %>% 
+  filter(type != "NA") %>% 
+  ggplot(mapping = aes(x = capdist, group = onset, fill = factor(as.factor(onset), labels = c("Incipient conflict", "Ongoing conflict")))) + 
+  geom_density(alpha = .8) +
+  labs(
+  x ="Distance to capital",
+  y = "Density",
+  title = "Conflict Starts Close To, Or Far From, Capital Cities", 
+  subtitle = "Distribution of proximity to capital cities, according to type of conflict ", 
+  caption = "Tollefsen, Andreas Foro; Havard Strand & Halvard Buhaug (2012) \n PRIO-GRID: A unified
+spatial data structure. \n  Journal of Peace Research 49(2): 363-374; \n available at https://prio.org/Data/PRIO-GRID/",
+  fill = "Type of conflict") + 
+   my_theme + sd
+```
+
+The graph above shows the distribution of grid cells corresponding to half-degrees squares dividing up the entire globe. From these grids, I have selected only those that are located in places affected by conflict, and attempt at answering the question: Are the places where the conflict begins different than those that it spreads out to? 
+
+The graph above does not completely answer the stated question, but it does provide relevant information related to it. A kernel density graph shows us how the data is concentrated and distributed. Two main things stick out: 1) The distribution for the places where conflict started (onset) has a bimodal distribution; and 2) One of the modes of this distribution is to the left of the mode of the distribution for the other group, and the other one is to its right. 
+
+This is very interesting because it points at the fact that places where conflict first sparks are either relatively closer to the capital, and thus are potentially ignited by or with the help of urban groups and related to visible social unrest in bigger cities (or, inversely, disparities created by wealth in urban centers and their periphery ignite social unrest), or it is very far away (over 1500 km away), which might also be the reason why unrest begins (lack of acknowledgement or recognition from the government). This latter case is also in line with ideas of the literature in Conflict Studies that state that State Capacity is an important factor in preventing and controlling conflict, and the fact that the State might not have agency over remote areas can have an impact on the probability of the start of civil conflict. 
+
+
+
+```{r}
+
+merged %>% group_by(confid, type, onset) %>% filter(year> 1990) %>% 
+  filter(type !=2) %>% 
+  filter(type != "NA") %>% 
+   filter(onset != "1") %>% 
+  summarise(m = mean(capdist)) %>% 
+  ggplot(mapping = aes(y = m, group = as.factor(type), color = factor(as.factor(type), labels = c("non-internationalized civil conflict", "internationalized civil conflict")))) +  
+  geom_boxplot() + 
+  labs(
+    color = "Type of conflict",
+    y = "Average \ndistance \nto capital",
+    title = "Internationalized civil conflict occurs closer to  \ncapital cities than non-internationalized", 
+    subtitle = "Distribution of proximity to capital cities, according to nature of conflict", 
+    caption = "Tollefsen, Andreas Foro; Havard Strand & Halvard Buhaug (2012) \n PRIO-GRID: A unified
+  spatial data structure. \n  Journal of Peace Research 49(2): 363-374; \n available at https://prio.org/Data/PRIO-GRID/") + 
+   my_theme + sd + theme(axis.title.x=element_blank(), axis.text.x=element_blank(),axis.ticks.x = element_blank(), panel.grid.minor.x = element_line(size=0), panel.grid.major.x = element_line(size=0))
+
+```
+
+
+The above box charts take a closer look at the differences between cases in which a location is the place where a conflict was onset, and the cases in which it was not. I further disaggregate the date into types on conflict, particularly looking into civil conflict (not considering any inter-state war). 
+
+In order to account for correlations between grids that are close together because they are part of the same city or vicinity, I get the averages per conflict (as uniquely identified by PRIO) per type of conflict and plot the distributions of the resulting sets. 
+
+Interestingly, we see that the distributions between non-internationalized intrastate conflict, and internationalized intrastate conflict are noticeably different. We can see how the distribution is closer to zero in the case of the internationalized intrastate conflict, which in other words means that in the cases in which a conflict scales to become of global interest and other countries end up taking part, the locations of the conflict tend to be closer to the capital. This interesting result can lead us to infer that when conflicts are closer to the capital, and in turn, to bigger cities, this might put more interests in risk, draw more media attention, and as a consequence attract the involvement/aid of other parties into the conflict. 
+
+Lastly, it is also interesting to note that while the difference is not very stark, the onset of cases that eventually become internationalized, are even closer to the capital than their non-onset counterparts.
+
+
+```{r}
+
+merged %>% group_by(type, year) %>% filter(year> 1990) %>% 
+  filter(type !=2) %>% 
+  filter(type != "NA") %>% 
+  filter(onset != 1) %>% 
+  summarise(m1 = mean(capdist), m2 = mean(bdist1)) %>% 
+  ggplot(mapping = aes(y = m1, x = year, group = type, color = factor(as.factor(type), labels = c("non-internationalized civil conflict", "internationalized civil conflict")))) +  
+  geom_point() + geom_line() +
+  scale_color_discrete(labels=c("non-internationalized civil conflict ", "internationalized civil conflict")) + 
+  labs(
+  color = "Type of conflict",
+  x = "Year",
+  y = "Average \ndistance \nto capital",
+  title = "Internationalized civil war has been starting closer\n to capital cities  since 1996", 
+  subtitle = "Distribution of proximity of the onset of conflict to capital cities,  \n according to type of conflict.", 
+  caption = "Tollefsen, Andreas Foro; Havard Strand & Halvard Buhaug (2012) \n PRIO-GRID: A unified
+spatial data structure. \n  Journal of Peace Research 49(2): 363-374; \n available at https://prio.org/Data/PRIO-GRID/") + 
+   my_theme + sd 
+
+``` 
+
+To futher examine the grpah presented before, I take a closer look at the time-trends of the average distances to the capital cities by each type of conflict. 
+An initial comment is that the meassure for non-internationalized civil conflict, on a first look, seems relatively steady over time although it is experiencing a slight upward trend. However, the trends in internationalized civil conflict are significantly different. We see that prior to 1995, on average the conflict happens very close to capital cities, significantly more so than non-internationalized conflicts, but then the average sharply inceases between 1995 and 1996, potentially explained by better technologies to engage in more remote areas. However, after the sharp increase we can see a continious descent, going below the threshold set by the non-internationalized civil conflict.  
+
+
+
+
