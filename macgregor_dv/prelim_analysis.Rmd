@@ -1,5 +1,5 @@
 ---
-title: "prelim_analysis"
+title: "Preliminary analysis"
 output: html_document
 code_folding: hide
 
@@ -167,7 +167,7 @@ foreign_aid %>%
   labs(
     x = "Year",
     y = "Aid share \n per \nregion", 
-    title ="Middle East and North Africa's share of aid from the United States \nhas decreased since early 2000s due to increased aid \n to South and Central Asia and Sub-Saharan Africa",
+    title ="Middle East and North Africa's share of aid from the US \nhas decreased since early 2000s due to increased aid \n to South and Central Asia and Sub-Saharan Africa",
     subtitle = "Regional distribution over time by category of United States foreign aid \n(1960-2018)", 
     caption =  "Source: USAID dataset available at https://explorer.usaid.gov/",
    fill = "Region") + 
